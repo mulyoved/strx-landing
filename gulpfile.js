@@ -30,7 +30,10 @@ var reload = browserSync.reload;
 
 var gutil = require('gulp-util');
 var ftp = require('gulp-ftp');
-var secrets = require('./.ftppass');
+var uncss = require('gulp-uncss');
+var inlinesource = require('gulp-inline-source');
+//var secrets = require('./.ftppass');
+require('gulp-grunt')(gulp);
 
 var AUTOPREFIXER_BROWSERS = [
   'ie >= 10',
@@ -98,6 +101,10 @@ gulp.task('styles', function () {
       })
       .on('error', console.error.bind(console))
     )
+    //Muly: not sure why it is needed but it does make it much smaller
+    .pipe(uncss({
+      html: ['app/index.html']
+    }))
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
     .pipe(gulp.dest('.tmp/styles'))
     // Concatenate And Minify Styles
@@ -111,6 +118,7 @@ gulp.task('html', function () {
   var assets = $.useref.assets({searchPath: '{.tmp,app}'});
 
   return gulp.src('app/**/*.html')
+    //.pipe(inlinesource()) // tried to add this not sure why it didn't work
     .pipe(assets)
     // Concatenate And Minify JavaScript
     .pipe($.if('*.js', $.uglify({preserveComments: 'some'})))
@@ -120,7 +128,7 @@ gulp.task('html', function () {
     .pipe($.if('*.css', $.uncss({
       html: [
         'app/index.html',
-        'app/styleguide.html'
+        //'app/styleguide.html'
       ],
       // CSS Selectors for UnCSS to ignore
       ignore: [
@@ -158,7 +166,7 @@ gulp.task('serve', ['styles'], function () {
 
   gulp.watch(['app/**/*.html'], reload);
   gulp.watch(['app/styles/**/*.{scss,css}'], ['styles', reload]);
-  gulp.watch(['app/scripts/**/*.js'], ['jshint']);
+  //gulp.watch(['app/scripts/**/*.js'], ['jshint']);
   gulp.watch(['app/images/**/*'], reload);
 });
 
@@ -176,7 +184,7 @@ gulp.task('serve:dist', ['default'], function () {
 
 // Build Production Files, the Default Task
 gulp.task('default', ['clean'], function (cb) {
-  runSequence('styles', ['jshint', 'html', 'images', 'fonts', 'copy'], cb);
+  runSequence('styles', ['html', 'images', 'fonts', 'copy'], cb);
 });
 
 // Run PageSpeed Insights
@@ -186,43 +194,12 @@ gulp.task('pagespeed', pagespeed.bind(null, {
   // free (no API key) tier. You can use a Google
   // Developer API key if you have one. See
   // http://goo.gl/RkN0vE for info key: 'YOUR_API_KEY'
-  url: 'https://example.com',
+  url: 'http://www.styrax.co.php53-6.dfw1-2.websitetestlink.com/',
   strategy: 'mobile'
 }));
 
-gulp.task('ftp', function () {
-  return gulp.src('dist/**/*')
-    .pipe(ftp({
-      host: 'ftp3.ftptoyoursite.com',
-      user: secrets.key1.username,
-      pass: secrets.key1.password,
-      remotePath: '/www.styrax.co/web/content'
-    }))
-    // you need to have some kind of stream after gulp-ftp to make sure it's flushed
-    // this can be a gulp plugin, gulp.dest, or any kind of stream
-    // here we use a passthrough stream
-    .pipe(gutil.noop());
-});
-
-
 gulp.task('deploy', function() {
-  rsync({
-    ssh: true,
-    src: './dist/index.html',
-    dest: 'mulyoved:WrongPasswordCatch222@ftp3.ftptoyoursite.com:/www.styrax.co/web/content',
-    recursive: true,
-    syncDest: true,
-    args: ['--verbose']
-  }, function(error, stdout, stderr, cmd) {
-    if (error) {
-      gutil.log(cmd);
-      gutil.log(stderr);
-      gutil.log(error);
-    }
-    else {
-      gutil.log(stdout);
-    }
-  });
+  gulp.run('grunt-deploy');
 });
 
 // Load custom tasks from the `tasks` directory
